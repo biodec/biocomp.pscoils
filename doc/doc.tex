@@ -1,0 +1,176 @@
+\documentclass[11pt,english]{article}
+
+\usepackage[english]{babel}
+
+
+
+\title{PS-COILS}
+
+\author{Piero Fariselli}
+\begin{document}
+
+\maketitle
+
+\section{PSCOILS program}
+
+PSCOILS is a simple evolution of COILS \cite{Lupas} and PCOILS \cite{pcoils} programs.
+It uses the same parameters that were developed for COILS and exploits both sequence and
+evolutionary information (in the form of sequence profiles). For the details of the
+parameter construction please see \cite{Lupas,comparison}. 
+
+\section{Background}
+
+Here we summarize the basic algorithms behind COILS, PCOILS and PSCOILS in order to
+highlight the basic differences.
+
+\subsection{COILS}
+The coils program is based on scoring tables $S^h(a)$ that are used to compute the probability score
+for each segment of a protein sequence (see \cite{Lupas}), and some parameters that
+define Gaussian probabilities. Then the main parameters are:
+\begin{itemize}
+\item $ \mu_{cc}, \mu_{g}$ the average scoring values of the coiled-coil and globular protein sets;
+\item $ \sigma_{cc}, \sigma_{g}$ the standard deviation of the scoring values for the 
+      coiled-coil and globular protein sets;
+\item $ S^h(a)=$ the score for the residue type $a$ in the heptad position $h$ (from 1 to 7).
+\end{itemize}
+So that the probability of a coiled-coil segment of length $W$ starting at position $i$ in 
+a given sequence is computed as
+\begin{equation}
+Pr_i=\frac{G_{cc}}{G_{cc}+c\cdot G_{g}}
+\end{equation}
+where $c$ is the bias for the most abundant globular class ($g$) and
+$G_{cc}$ and $G_{g}$ are defined as
+\begin{equation}
+G_{cc}=\frac{1}{\surd{2}\sigma_{cc}}e^{-\frac{(x_i-\mu_{cc})^2}{\sigma_{cc}^2}}
+\end{equation}
+\begin{equation}
+G_{g}=\frac{1}{\surd{2}\sigma_{g}}e^{-\frac{(x_i-\mu_{g})^2}{\sigma_{g}^2}}
+\end{equation}
+
+The score $x_i$ is computed using the matrix $S^h(a)$ (\cite{Lupas}) along the segment $W$ starting
+at position $i$ as
+\begin{equation}
+x_i=(\prod_{h=1}^W f(a_{i+h},h)^{e_h})^{1/N}
+\label{eq:prodcoils}
+\end{equation}
+where $e_h$ is the exponential weight of the position $h$ (if not weighted is simply $e_h=1$) and 
+$N$ is the normalization factor $N=\sum_{h=1}^W e_h$. 
+The function $f$ is in the case of COILS program is simply
+\begin{equation}
+f(a_{i+h},h)=S^h(a_{i+h})
+\label{eq:fcoils}
+\end{equation}
+where $S^h(a_{i+h})$ is the element of the COILS scoring table 
+accounting for the residue type $a_{i+h}$ in the $h^{th}$ heptad position.
+
+\subsection{PCOILS}
+
+For sake of clarity we have to mention that this is {\em our implementation} of PCOILS, and we cannot
+guarantee that the original PCOILS program works in the same way, since the authors
+does not show the explicit algorithm \cite{pcoils}. However, in case of our PCOILS, all the 
+machinery described above still remains untouched, with the exception of function $f$ 
+(Eq. \ref{eq:fcoils}). Since we are dealing with evolutionary information 
+computed from a given multiple alignment, instead of the single-sequence $s$
+we work with the profile $P_k(a)$, that represents the frequency of residue $a$ in position $k$ of 
+the alignment.
+In this case the PCOILS score is still defined by an equation similar to Eq.\ref{eq:prodcoils}, 
+but with the new function:
+\begin{equation}
+x_i=(\prod_{h=1}^W f(S,P,h)^{e_h})^{1/N}
+\label{eq:prodpcoils}
+\end{equation}
+and
+\begin{equation}
+f(S,P,h)=<S^h,P_{i+h}>=\sum_{a \in \{Residues\}} S^h(a)\cdot P_{i+h}(a)
+\label{eq:fpcoils}
+\end{equation}
+
+\subsection{PSCOILS}
+PSCOILS combines the sequence and the profile information using a linear 
+weighting scheme, namely $\lambda COILS + (1-\lambda)PCOILS$ with $\lambda$
+in the range of $[0,1]$ the only variation with respect to the previous algorithm
+is again the $f$ equation (\ref{eq:fcoils} and \ref{eq:fpcoils}). We then have
+as before
+\begin{equation}
+x_i=(\prod_{h=1}^W f(S,P,h,\lambda)^{e_h})^{1/N}
+\label{eq:prodpscoils}
+\end{equation}
+and
+\begin{equation}
+f(S,P,h,\lambda)=\lambda S^h(a_{i+h}) + (1-\lambda) <S^h,P_{i+h}>
+\label{eq:fpscoils}
+\end{equation}
+where the meaning of $S^h(a_{i+h})$  and $<S^h,P_{i+h}>$ are the same as in
+\ref{eq:fcoils} and \ref{eq:fpcoils}, respectively. 
+No attempt have been made to optimize $\lambda$ but in the current stage it has
+been set to $1/2$. In this case the sequence and the profile are equally weighted.
+
+
+\section{PSCOILS usage}
+
+The program {\tt psCoils.py} is written in {\bf python} and it is distributed under the
+{\em GPL License}, 
+\begin{verbatim}
+psCoils.py  is free software and can be redistributed  and/or 
+modified under the terms of the GNU General Public License as 
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+\end{verbatim}
+{\tt psCoils.py} incorporates both COILS and our version of PCOILS, since the original one 
+\cite{pcoils} were not explicitly described. 
+Just typing the program name {\tt psCoils.py} on the standard output will appear
+\begin{verbatim}
+USAGE:  ./psCoils.py -f fasta  -p profile [options]
+Options:
+ -W 14/21/28 # one of the possible windows (default 21)
+ -w w/uw  # weight or unweight default=uw
+ -l T/F  # print prediction labels when set T (default) if P>0.5
+ -L [0.0,1.0] lambda value. It will be used only if both -f and -p are set
+\end{verbatim}
+The parameters are the standard one defined for COILS, such as: 
+\begin{itemize}
+\item {\tt -W}: the input window that is set to 21 as default;
+\item {\tt -w}: can set the heptad weighted {\tt w}, or unweighted {\tt uw} periodicity
+\item {\tt -l}: set the label printing in the output options (unless -l F is set)
+\item {\tt -L}: this set the linear weighting scheme between sequence and profile, according to
+                $\lambda$ Sequence +(1-$\lambda$) Profile.
+\end{itemize}
+{\tt psCoils.py} can be used as COILS, PCOILS or PSCOILS depending on the different
+input provided, such as:
+\begin{itemize}
+\item As {\bf COILS}: use only {\tt -f fasta} option.
+\item As {\bf PCOILS}: use only {\tt -p profile} option.  
+\item As {\bf PSCOILS}: use both {\tt -f fasta -p profile} options.  
+\end{itemize}
+A typical output is 
+\begin{verbatim}
+ Pos A Hep Score   Prob    Gcc     Gg    Pred (Loop=L Coiledcoil=C)
+   1 C a   0.480   0.000   0.000   0.927 L
+   2 M a   0.804   0.000   0.001   4.596 L
+   3 S b   0.804   0.000   0.001   4.596 L
+..
+\end{verbatim}
+where {\tt Pos} is the sequence position, {\tt A} contains the residue sequence
+(only an {\tt x} if PCOILS is used), {\tt Prob} is the computed probability as
+described above, {\tt Gcc} and {\tt Gg} are Gaussian values obtained as described above
+and {\tt Pred} is the label associated at {\tt Prob} if its value is greater of $0.5$. 
+
+\begin{thebibliography}{99}
+
+\bibitem{Lupas} Lupas AN, Van Dyke M and  Stock J. (1991)  ``Predicting coiled coils from protein
+   sequences''. $Science$, 252, 1162-1164.
+
+\bibitem{pcoils} Gruber M, Soding J and Lupas AN (2005) ``REPPER-repeats and their periodicities 
+in fibrous proteins'', {\em Nucleic Acids Res.} 33:239–243.
+
+\bibitem{comparison} Gruber M, Soding J and Lupas AN (2006)
+``Comparative analysis of coiled-coil prediction methods''. {\em J Struct Biol}, 155:140-145.
+
+\end{thebibliography}
+
+\end{document}

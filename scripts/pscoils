@@ -1,0 +1,73 @@
+#!/usr/bin/python
+import sys
+import biocomp.pscoils
+from biocomp.pscoils import pred_coil
+from biocomp.pscoils.utils import readFasta, printCoil
+import getopt
+import string
+from Bio.SeqRecord import SeqRecord
+
+def usage(prog):
+    ''' '''
+    print "USAGE: ",prog, "-f fasta  -p profile [options]"
+    print "Options:"
+    print "       -W 14/21/28 # one of the possible windows (default 21)"
+    print "       -w w/uw  # weight or unweight default=uw"
+    print "       -l T/F  # print prediction labels when set T (default) if P>0.5"
+    print "       -L [0.0,1.0] lambda value. It will be used only if both -f and -p are set "
+    return 
+
+if __name__=='__main__':
+    try:
+       opts, args = getopt.getopt(sys.argv[1:], "f:p:w:W:l:L:")
+    except:
+       usage(sys.argv[0])
+       sys.exit(2)
+    weight='un'
+    labels='T'
+    wlambda=0.5
+    win=21
+    modefasta=modeprofile=False
+    if not opts:
+        usage(sys.argv[0])
+        sys.exit(2)
+    for o,a in opts:
+        if o == '-f':
+            seqs=readFasta(a)
+            modefasta=True
+        elif o == '-p':
+            prof,profLen=biocomp.pscoils.readProf(a)
+            modeprofile=True
+        elif o == '-L':
+            wlambda=string.atof(a)
+        elif o == '-l':
+            labels=a
+        elif o == '-w':
+            weight=a
+        elif o == '-W':
+            try:
+                win=string.atoi(a)
+            except:
+                usage(sys.argv[0])
+                sys.exit(2)
+        else:
+           usage(sys.argv[0])
+           sys.exit(2)
+    params=biocomp.pscoils.Params.Params(weight,win)
+    if modeprofile and modefasta: 
+        #use both 
+        for name in seqs.keys(): # WARNING We assume only one sequence!!!
+    		# TODO
+            raise("TODO")
+    	    gg,gcc,prob,hept_seq,score=biocomp.pscoils.pred_coil2(seqs[name],prof,params,wlambda) 
+            printCoil(seqs[name],len(seqs[name]),hept_seq,score,prob,gcc,gg,labels)
+    elif modefasta:
+        for name in seqs.keys():
+        	seqr = SeqRecord(seqs[name], id=name)
+        	seqr = pred_coil(seqr, params)
+        	printCoil(seqr,labels)
+    elif modeprofile:
+    	# TODO
+        raise("TODO")
+        gg,gcc,prob,hept_seq,score=biocomp.pscoils.pred_coil(prof,profLen,params,biocomp.pscoils.profScore)
+        biocomp.pscoils.printCoil('x'*profLen,profLen,hept_seq,score,prob,gcc,gg,labels)
